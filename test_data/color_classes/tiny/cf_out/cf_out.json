@@ -1,0 +1,19 @@
+{
+    "parameters info": {
+        "input": "refs.fasta",
+        "k": 5,
+        "output prefix": "cf_out"
+    },
+    "basic info": {
+        "vertex count": 25
+    },
+    "contigs info": {
+        "maximal unitig count": 7,
+        "vertex count in the maximal unitigs": 25,
+        "shortest maximal unitig length": 5,
+        "longest maximal unitig length": 9,
+        "sum maximal unitig length": 53,
+        "avg. maximal unitig length": 8,
+        "_comment": "lengths are in bases"
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "parameters info": {
+        "input": "yeast_chr7.fa",
+        "k": 31,
+        "output prefix": "out_yeast_chr7"
+    },
+    "basic info": {
+        "vertex count": 1071346
+    },
+    "contigs info": {
+        "maximal unitig count": 471,
+        "vertex count in the maximal unitigs": 1071346,
+        "shortest maximal unitig length": 31,
+        "longest maximal unitig length": 76898,
+        "sum maximal unitig length": 1085476,
+        "avg. maximal unitig length": 2305,
+        "_comment": "lengths are in bases"
+    }
+}

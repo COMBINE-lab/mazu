@@ -1,0 +1,19 @@
+{
+    "parameters info": {
+        "input": "tiny.fa",
+        "k": 7,
+        "output prefix": "out"
+    },
+    "basic info": {
+        "vertex count": 8
+    },
+    "contigs info": {
+        "maximal unitig count": 2,
+        "vertex count in the maximal unitigs": 8,
+        "shortest maximal unitig length": 10,
+        "longest maximal unitig length": 10,
+        "sum maximal unitig length": 20,
+        "avg. maximal unitig length": 10,
+        "_comment": "lengths are in bases"
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "parameters info": {
+        "input": "small_txome.fa",
+        "k": 31,
+        "output prefix": "small_txome"
+    },
+    "basic info": {
+        "vertex count": 18902
+    },
+    "contigs info": {
+        "maximal unitig count": 23,
+        "vertex count in the maximal unitigs": 18902,
+        "shortest maximal unitig length": 58,
+        "longest maximal unitig length": 2396,
+        "sum maximal unitig length": 19592,
+        "avg. maximal unitig length": 852,
+        "_comment": "lengths are in bases"
+    }
+}

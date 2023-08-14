@@ -1,0 +1,16 @@
+Tiny example with two seqs that have polyNs and are RC of eachother
+
+- Manually manipulated
+- tiny.json info may not match .fa and .cf* outputs
+
+
+tiny.seq:
+Reference:1_Sequence:I	N3 3+ N1 2-
+Reference:2_Sequence:I	2+ N1 3- N3
+
+tiny.seg:
+3	CACACACCAC
+2	CCTCAATACG
+
+Unitig IDs from cuttlefish is the minimum hash of kmers
+which are re-ordered top to bottom in .seg file with ids 0-N.

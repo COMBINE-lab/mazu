@@ -1,0 +1,5 @@
+; Generated with k=5
+A B C D E
+A X C Y E
+A B C Y E
+A X C D E
