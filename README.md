@@ -3,6 +3,8 @@ A Rust library for building modular, fast and compact indexes over genomic data
 
 > _Mazu ([媽祖](https://en.wikipedia.org/wiki/Mazu))... revered as a tutelary deity of seafarers, including fishermen and sailors..._
 
+## Disclaimer --- This library is in _alpha_ and is under active development.
+
 ## Highlights
 1. Query ready indexes via plug-and-play k-mer-to-unitig and unitig-to-occurrence mappings.
 2. Load (only) compatibility with [pufferfish](https://github.com/COMBINE-lab/pufferfish), deserialize pufferfish indices and work with them in Rust.
