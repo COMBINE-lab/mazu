@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use simple_sds::{
     bit_vector::BitVector,
     int_vector::IntVector,
@@ -5,9 +6,7 @@ use simple_sds::{
     raw_vector::{AccessRaw, RawVector},
 };
 
-use crate::err::{Error, Result};
-
-use serde::{Deserialize, Serialize};
+use crate::{Error, Result};
 
 /// Elias-Fano compressed representation for monotonic sequence
 ///

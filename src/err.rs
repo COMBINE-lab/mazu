@@ -25,6 +25,9 @@ pub enum Error {
 
     #[error("failed with error: {0}")]
     Other(String),
+
+    #[error("failed to parse cuttlefish tiling token")]
+    CfSeqTokenParseError,
 }
 
 impl Error {

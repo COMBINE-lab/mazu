@@ -1,7 +1,7 @@
 use simple_sds::int_vector::IntVector;
 use simple_sds::ops::{Access, Vector};
 
-use crate::cuttlefish::{tiling::CfSeqToken, CfFiles};
+use crate::cuttlefish::{CfFiles, CfSeqToken};
 use crate::err::{Error, Result};
 use crate::refseq::RefSeqCollection;
 use crate::unitig_set::UnitigSet;

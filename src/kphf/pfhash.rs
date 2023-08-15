@@ -10,7 +10,6 @@ use simple_sds::{
 use rayon::prelude::*;
 
 use super::{K2UPos, K2U, MPHF};
-use crate::km_size_t;
 use crate::unitig_set::UnitigSet;
 
 #[allow(non_camel_case_types)]
@@ -82,7 +81,7 @@ impl MPHF for pf1_mphf_t {
 }
 
 impl<H: MPHF> K2U for PFHash<H> {
-    fn k(&self) -> km_size_t {
+    fn k(&self) -> usize {
         self.unitigs.k()
     }
 
@@ -164,7 +163,7 @@ impl SampledPFHash<pf1_mphf_t> {
 }
 
 impl<H: MPHF> K2U for SampledPFHash<H> {
-    fn k(&self) -> km_size_t {
+    fn k(&self) -> usize {
         self.unitigs.k()
     }
 

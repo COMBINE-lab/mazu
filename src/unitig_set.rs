@@ -14,7 +14,6 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use crate::km_size_t;
 use crate::{
     cuttlefish::{CfFiles, CfInfo},
     elias_fano::EFVector,
@@ -28,7 +27,7 @@ use crate::{
 // NOTE: update Self::num_bits if struct changes
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnitigSet {
-    pub(crate) k: km_size_t,
+    pub(crate) k: usize,
     pub(crate) useq: SeqVector,
     pub(crate) accum_lens: EFVector,
     pub(crate) bv: BitVector,
@@ -40,7 +39,7 @@ impl UnitigSet {
         self.accum_lens.num_bits()
     }
     pub fn num_bits(&self) -> usize {
-        std::mem::size_of::<km_size_t>() * 8
+        std::mem::size_of::<usize>() * 8
             + self.useq.num_bits()
             + self.accum_len_bits()
             + self.bv.num_bits()
@@ -70,7 +69,7 @@ impl UnitigSet {
     }
 
     /// Create a `UnitigSet` from a list of strings
-    pub fn from_seqs(seqs: &[String], k: km_size_t) -> crate::err::Result<Self> {
+    pub fn from_seqs(seqs: &[String], k: usize) -> crate::err::Result<Self> {
         let len = seqs.iter().map(|s| s.len()).sum();
 
         let mut prefix_sum = 0;
@@ -239,7 +238,7 @@ impl UnitigSet {
         }
     }
 
-    pub fn k(&self) -> km_size_t {
+    pub fn k(&self) -> usize {
         self.k
     }
 }
@@ -251,7 +250,7 @@ impl UnitigSet {
 #[derive(Clone, Debug)]
 pub struct SeqVecCanonicalKmerIterU64<'a> {
     sv: SeqVectorSlice<'a>,
-    k: km_size_t,
+    k: usize,
     curr: usize,
 }
 
@@ -259,7 +258,7 @@ pub struct SeqVecCanonicalKmerIterU64<'a> {
 #[derive(Clone, Debug)]
 pub struct SeqVecSliceCanonicalKmers<'a> {
     sv: SeqVectorSlice<'a>,
-    k: km_size_t,
+    k: usize,
 }
 
 /// An `IntoIterator` for the chunked iterator that iterates over canonical k-mer iterators

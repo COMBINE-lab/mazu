@@ -1,12 +1,12 @@
 use kmers::naive_impl::CanonicalKmer;
 use serde::{Deserialize, Serialize};
 
-use super::{
+use crate::{
     kphf::{K2UPos, K2U},
     refseq::{RefSeqCollection, RefSeqIter, RefSeqSlice},
+    spt::SPT,
     Orientation,
 };
-use crate::spt::SPT;
 
 pub mod caching;
 pub mod defaults;
@@ -60,7 +60,7 @@ where
     H: K2U,
 {
     pub fn k(&self) -> usize {
-        self.base.k as usize
+        self.k2u.k()
     }
 
     pub fn get_ref_names(&self) -> Vec<String> {
@@ -170,46 +170,44 @@ where
         let u_occs = self
             .u2pos
             .decode_unitig_occs(&self.k2u, hits.encoded_unitig_occs);
-        util::project_onto_u_occs(self.k(), hits.k2upos, &u_occs)
+        project_onto_u_occs(self.k(), hits.k2upos, &u_occs)
     }
 }
 
-pub mod util {
-    use super::*;
-    pub fn project_onto_u_occs(
-        k: usize,
-        k2upos: K2UPos,
-        u_occs: &[UnitigOcc],
-    ) -> Vec<MappedRefPos> {
-        u_occs
-            .iter()
-            .map(|occ| project_onto_u_occ(k, &k2upos, occ))
-            .collect()
-    }
+/// project result of K2U query (offeset of k-mer on unitig) onto a list of unitig occurrences
+/// retrieving a k-mer's mapped reference positions
+pub fn project_onto_u_occs(k: usize, k2upos: K2UPos, u_occs: &[UnitigOcc]) -> Vec<MappedRefPos> {
+    u_occs
+        .iter()
+        .map(|occ| project_onto_u_occ(k, &k2upos, occ))
+        .collect()
+}
 
-    pub fn project_onto_u_occ(k: usize, k2upos: &K2UPos, occ: &UnitigOcc) -> MappedRefPos {
-        let ref_id = occ.ref_id;
-        // let k = self.k();
-        let contig_pos = occ.pos;
+/// project result of K2U query (offeset of k-mer on unitig) onto one unitig occurrence
+/// retrieving a k-mer's mapped reference position
+#[inline]
+pub fn project_onto_u_occ(k: usize, k2upos: &K2UPos, occ: &UnitigOcc) -> MappedRefPos {
+    let ref_id = occ.ref_id;
+    // let k = self.k();
+    let contig_pos = occ.pos;
 
-        let pos = match occ.o {
-            Orientation::Forward => k2upos.pos + contig_pos,
-            Orientation::Backward => contig_pos + (k2upos.unitig_len - k2upos.pos) - k,
-        };
+    let pos = match occ.o {
+        Orientation::Forward => k2upos.pos + contig_pos,
+        Orientation::Backward => contig_pos + (k2upos.unitig_len - k2upos.pos) - k,
+    };
 
-        let o = match k2upos.o {
-            kmers::naive_impl::MatchType::IdentityMatch => Orientation::Forward,
-            kmers::naive_impl::MatchType::TwinMatch => Orientation::Backward,
-            _ => unreachable!(),
-        };
+    let o = match k2upos.o {
+        kmers::naive_impl::MatchType::IdentityMatch => Orientation::Forward,
+        kmers::naive_impl::MatchType::TwinMatch => Orientation::Backward,
+        _ => unreachable!(),
+    };
 
-        let o = match occ.o {
-            Orientation::Forward => o,
-            Orientation::Backward => o.reverse(),
-        };
+    let o = match occ.o {
+        Orientation::Forward => o,
+        Orientation::Backward => o.reverse(),
+    };
 
-        MappedRefPos { ref_id, pos, o }
-    }
+    MappedRefPos { ref_id, pos, o }
 }
 
 // ----------------------------------------------------------------------------
@@ -222,7 +220,7 @@ pub struct BaseIndex {
     pub index_version: u64,
     pub reference_gfa: Vec<String>,
     // pub sampling_type: PufferfishType,
-    pub k: u64,
+    pub k: usize,
     pub num_kmers: usize,
     pub num_contigs: usize,
     pub seq_len: usize,
@@ -310,8 +308,9 @@ impl UnitigOcc {
         matches!(self.o, Orientation::Forward)
     }
 
-    // Encodes into pf1 u64 word
-    // pf1 encoding:
+    /// Encode [UnitigOcc] into a [u64]word (as in pufferfish),
+    ///
+    /// pufferfish encoding:
     // | 1 bit orientation | 31 bit position | 32 bit ref ID |
     #[inline]
     pub fn encode_pf1(&self) -> u64 {
@@ -327,7 +326,7 @@ impl UnitigOcc {
         word
     }
 
-    // Decodes from pf1 word
+    /// Decode [UnitigOcc] from a [u64] word (as in pufferfish),
     #[inline]
     pub fn decode_pf1(word: u64) -> Self {
         let ref_id = (word & 0xFFFFFFFF) as usize;

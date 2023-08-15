@@ -1,4 +1,4 @@
-use crate::cuttlefish::{tiling::CfSeqToken, CfFiles};
+use crate::cuttlefish::{CfFiles, CfSeqToken};
 use crate::err::Result;
 use crate::refseq::RefSeqCollection;
 use crate::unitig_set::UnitigSet;

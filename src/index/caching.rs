@@ -170,7 +170,7 @@ where
         let u_occs = self
             .u2pos
             .decode_unitig_occs(&self.k2u, hits.encoded_unitig_occs);
-        crate::index::util::project_onto_u_occs(self.k(), hits.k2upos, &u_occs)
+        crate::index::project_onto_u_occs(self.k(), hits.k2upos, &u_occs)
     }
 
     // Validate canonical k-mers of u8 slice with given reference ID

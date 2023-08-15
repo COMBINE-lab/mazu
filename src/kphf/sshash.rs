@@ -10,14 +10,13 @@ use simple_sds::{
 use std::hash::BuildHasher;
 
 use super::{K2UPos, WyHashState, K2U};
-use crate::{elias_fano::EFVector, km_size_t, unitig_set::UnitigSet, Result};
+use crate::{elias_fano::EFVector, unitig_set::UnitigSet, Result};
 
 #[allow(non_camel_case_types)]
 pub(crate) type mphf_t = boomphf::Mphf<u64>;
 pub type SSHashDefault = SSHash<mphf_t, WyHashState>;
 pub struct SSHashBuilder<MPHF, T: BuildHasher> {
-    // k: km_size_t,
-    w: km_size_t,
+    w: usize,
     unitigs: UnitigSet,
     mphf: MPHF,
     build_hasher: T,
@@ -38,8 +37,8 @@ pub struct SSHashBuilder<MPHF, T: BuildHasher> {
 pub struct SSHash<MPHF, T: BuildHasher> {
     build_hasher: T, // buildhasher for minimizer computation
 
-    // k: km_size_t,
-    w: km_size_t,
+    // k: usize,
+    w: usize,
     unitigs: UnitigSet,
     mphf: MPHF,
     occs_prefix_sum: EFVector, // the "Sizes" of buckets (as in paper)
@@ -77,18 +76,14 @@ impl SkewIndex<mphf_t> {
 }
 
 impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
-    pub fn from_unitig_set_no_skew_index(
-        unitigs: UnitigSet,
-        w: km_size_t,
-        build_hasher: BH,
-    ) -> Self {
+    pub fn from_unitig_set_no_skew_index(unitigs: UnitigSet, w: usize, build_hasher: BH) -> Self {
         let skew_param = usize::MAX;
         Self::from_unitig_set(unitigs, w, skew_param, build_hasher)
     }
 
     pub fn from_unitig_set(
         unitigs: UnitigSet,
-        w: km_size_t,
+        w: usize,
         skew_param: usize,
         build_hasher: BH,
     ) -> Self {
@@ -295,7 +290,7 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
             Some(skew_index) => skew_index.num_bits(),
         };
 
-        std::mem::size_of::<km_size_t>() * 8
+        std::mem::size_of::<usize>() * 8
             + self.unitigs.num_bits()
             + self.occs_prefix_sum.num_bits()
             + self.pos.num_bits()
@@ -338,7 +333,7 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
 
     pub fn from_unitig_set_no_skew_index(
         unitigs: UnitigSet,
-        w: km_size_t,
+        w: usize,
         build_hasher: T,
     ) -> Result<Self> {
         SSHashBuilder::from_unitig_set_no_skew_index(unitigs, w, build_hasher).finish()
@@ -346,7 +341,7 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
 
     pub fn from_unitig_set(
         unitigs: UnitigSet,
-        w: km_size_t,
+        w: usize,
         skew_param: usize,
         build_hasher: T,
     ) -> Result<Self> {

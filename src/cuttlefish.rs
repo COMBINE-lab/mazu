@@ -1,8 +1,17 @@
-use crate::km_size_t;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
+use crate::Result;
+
+/// Extension for cuttlefish _segments_ file containing unitigs
 const CF_SEGS_EXT: &str = "cf_seg";
+
+/// Extension for cuttlefish _sequence_ file containing tiling of reference sequences
 const CF_SEQS_EXT: &str = "cf_seq";
 
 // Files for cuttlefish GFA reduced format
@@ -48,7 +57,7 @@ pub struct CfParamInfo {
     #[serde(alias = "input")]
     pub input: PathBuf,
     #[serde(alias = "k")]
-    pub k: km_size_t,
+    pub k: usize,
     #[serde(alias = "output prefix")]
     pub output_prefix: PathBuf,
 }
@@ -85,7 +94,7 @@ impl CfInfo {
         Ok(serde_json::from_reader(f)?)
     }
 
-    pub fn k(&self) -> km_size_t {
+    pub fn k(&self) -> usize {
         self.parameter_info.k
     }
 
@@ -109,73 +118,65 @@ impl CfFiles {
     }
 }
 
-pub mod tiling {
-    use std::{
-        fs::File,
-        io::{BufRead, BufReader},
-        str::FromStr,
-    };
+use crate::Orientation;
 
-    use super::*;
-    use crate::Orientation;
+#[derive(Clone, Debug, PartialEq)]
+pub enum CfSeqToken {
+    PolyN(usize),
+    Unitig { id: usize, o: Orientation },
+}
 
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum CfSeqToken {
-        PolyN(usize),
-        Unitig { id: usize, o: Orientation },
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct CfSeqTokenParseErr;
-
-    impl FromStr for CfSeqToken {
-        type Err = CfSeqTokenParseErr;
-        fn from_str(s: &str) -> Result<Self, Self::Err> {
-            if let Some(stripped_s) = s.strip_prefix('N') {
-                let len = stripped_s.parse().map_err(|_| CfSeqTokenParseErr)?;
-                Ok(Self::PolyN(len))
+impl FromStr for CfSeqToken {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        if let Some(stripped_s) = s.strip_prefix('N') {
+            let len = stripped_s
+                .parse()
+                .map_err(|_| crate::Error::CfSeqTokenParseError)?;
+            Ok(Self::PolyN(len))
+        } else {
+            let end = s.len() - 1;
+            let o = if s.as_bytes()[end] == b'+' {
+                Orientation::Forward
             } else {
-                let end = s.len() - 1;
-                let o = if s.as_bytes()[end] == b'+' {
-                    Orientation::Forward
-                } else {
-                    Orientation::Backward
-                };
+                Orientation::Backward
+            };
 
-                let id = s[..end].parse().map_err(|_| CfSeqTokenParseErr)?;
-                Ok(Self::Unitig { id, o })
-            }
+            let id = s[..end]
+                .parse()
+                .map_err(|_| crate::Error::CfSeqTokenParseError)?;
+            Ok(Self::Unitig { id, o })
         }
     }
+}
 
-    // Iterator for cuttlefish reduced GFA format
-    // Returns Vec<CfSeqTokens> for each line in .seq file.
-    // Vec of tokens follows reduced GFA format where unitigs or polyN stretches are space separated
-    // which are:
-    // - <cfid><o>, where cfid is unique ID cuttlefish assigns to a unitig, and o = + if forward and - otherwise
-    // - N<n>, for a polyN stretch of length n
-    pub struct CfSeqIterator<P> {
-        lines: std::io::Lines<P>,
+// Iterator for cuttlefish reduced GFA format
+// Returns Vec<CfSeqTokens> for each line in .seq file.
+// Vec of tokens follows reduced GFA format where unitigs or polyN stretches are space separated
+// which are:
+// - <cfid><o>, where cfid is unique ID cuttlefish assigns to a unitig, and o = + if forward and - otherwise
+// - N<n>, for a polyN stretch of length n
+pub struct CfSeqIterator<P> {
+    lines: std::io::Lines<P>,
+}
+
+impl<P: BufRead> Iterator for CfSeqIterator<P> {
+    type Item = (String, Vec<CfSeqToken>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let line = self.lines.next()?;
+        let line = line.unwrap();
+        let (id, tokens) = line.split_once('\t').unwrap();
+
+        let tokens = tokens.split(' ').map(|s| s.parse().unwrap()).collect();
+        Some((id.to_string(), tokens))
     }
+}
 
-    impl<P: BufRead> Iterator for CfSeqIterator<P> {
-        type Item = (String, Vec<CfSeqToken>);
-
-        fn next(&mut self) -> Option<Self::Item> {
-            let line = self.lines.next()?;
-            let line = line.unwrap();
-            let (id, tokens) = line.split_once('\t').unwrap();
-
-            let tokens = tokens.split(' ').map(|s| s.parse().unwrap()).collect();
-            Some((id.to_string(), tokens))
-        }
-    }
-
-    impl CfFiles {
-        pub fn iter_tiling(&self) -> std::io::Result<CfSeqIterator<BufReader<File>>> {
-            let f = File::open(self.tiling.clone())?;
-            let pb = BufReader::new(f);
-            Ok(CfSeqIterator { lines: pb.lines() })
-        }
+impl CfFiles {
+    pub fn iter_tiling(&self) -> std::io::Result<CfSeqIterator<BufReader<File>>> {
+        let f = File::open(self.tiling.clone())?;
+        let pb = BufReader::new(f);
+        Ok(CfSeqIterator { lines: pb.lines() })
     }
 }

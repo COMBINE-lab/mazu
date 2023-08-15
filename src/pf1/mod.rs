@@ -218,7 +218,7 @@ pub struct PF1Info {
     pub sampling_type: PufferfishType,
 
     #[serde(rename = "k")]
-    pub kmer_size: u64,
+    pub kmer_size: usize,
     pub num_kmers: usize,
     pub num_contigs: usize,
     #[serde(rename = "seq_length")]

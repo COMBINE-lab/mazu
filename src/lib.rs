@@ -1,26 +1,28 @@
-pub mod cuttlefish;
+// Basic data structures, utilities, errors
 pub mod elias_fano;
-mod err;
-pub mod kphf;
+pub mod err;
+pub mod util;
+pub mod wm;
+
+// Interaction with COMBINE-lab projects
+pub mod cuttlefish;
 pub mod pf1;
+
+// Index building blocks
+pub mod index;
+pub mod kphf;
 pub mod refseq;
 pub mod spt;
 pub mod spt_compact;
 pub mod unitig_set;
-pub mod util;
-pub mod wm;
 
 #[cfg(test)]
 pub mod test_utils;
 
 // pub mod cc_index;
-pub mod index;
 pub use index::*;
 
 pub use err::{Error, Result};
-
-#[allow(non_camel_case_types)]
-type km_size_t = usize;
 
 /// Orientation `enum` for sequences (unitigs, k-mers, etc.,)
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
@@ -36,11 +38,9 @@ impl Orientation {
             Self::Backward => Self::Forward,
         }
     }
-}
 
-impl Orientation {
     /// Sensible conversions to/from unsigned integers
-    pub fn to_u8(self) -> u8 {
+    pub fn to_u8(&self) -> u8 {
         match self {
             Orientation::Forward => 1,
             Orientation::Backward => 0,
@@ -48,7 +48,7 @@ impl Orientation {
     }
 
     /// Sensible conversions to/from unsigned integers
-    pub fn to_u64(self) -> u64 {
+    pub fn to_u64(&self) -> u64 {
         match self {
             Orientation::Forward => 1,
             Orientation::Backward => 0,
