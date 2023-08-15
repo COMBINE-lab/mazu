@@ -154,7 +154,7 @@ impl SPT {
         BaseIndex {
             index_version: u64::MAX,
             reference_gfa: Vec::new(),
-            k: self.k().try_into().unwrap(),
+            k: self.k(),
             num_kmers: self.unitigs.n_kmers(),
             num_contigs: self.n_unitigs(),
             seq_len: usize::MAX,

@@ -93,7 +93,7 @@ impl DeserializeFromCpp for DenseIndex {
             let accum_lens = EFVector::from_usize_slice(&accum_lens)?;
 
             let unitigs = UnitigSet {
-                k: base.k as usize,
+                k: base.k,
                 useq,
                 accum_lens,
                 bv,

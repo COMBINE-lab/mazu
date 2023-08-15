@@ -581,7 +581,7 @@ mod test {
         // 2	CCTCAATACG
         let unitigs = load_unitigs(TINY_CF_PREFIX);
         let bh = WyHashState::default();
-        let sshash = SSHash::from_unitig_set_no_skew_index(unitigs, w, bh.clone()).unwrap();
+        let sshash = SSHash::from_unitig_set_no_skew_index(unitigs, w, bh).unwrap();
 
         // 1) fw
         let mut km = CanonicalKmer::from("CACACAC");
@@ -787,7 +787,7 @@ mod test {
 
         assert_eq!(skew_index.n_kmers_in_skew_index(), skew_index.n_kmers());
         // No k-mers in skew index
-        let no_skew_index = SSHash::from_unitig_set_no_skew_index(unitigs, w, bh.clone()).unwrap();
+        let no_skew_index = SSHash::from_unitig_set_no_skew_index(unitigs, w, bh).unwrap();
 
         assert!(skew_index.num_bits() > no_skew_index.num_bits());
 

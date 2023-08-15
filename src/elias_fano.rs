@@ -144,7 +144,7 @@ mod test {
     fn vigna_fig1() {
         let xs = [5, 8, 8, 15, 32];
 
-        let ys = EFVector::from_iter(xs.clone().into_iter(), 32).unwrap();
+        let ys = EFVector::from_iter(xs.into_iter(), 32).unwrap();
 
         for (i, &x) in xs.iter().enumerate() {
             assert_eq!(ys.get(i), x);
@@ -156,6 +156,6 @@ mod test {
     fn not_monotone() {
         let xs = [5, 8, 7, 15, 32];
 
-        EFVector::from_iter(xs.clone().into_iter(), 32).expect("Monotone seq");
+        EFVector::from_iter(xs.into_iter(), 32).expect("Monotone seq");
     }
 }

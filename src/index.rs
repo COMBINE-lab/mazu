@@ -261,7 +261,7 @@ impl BaseIndex {
         Self {
             index_version: u64::MAX,
             reference_gfa: Vec::new(),
-            k: spt.k().try_into().unwrap(),
+            k: spt.k(),
             num_kmers: spt.unitigs.n_kmers(),
             num_contigs: spt.n_unitigs(),
             seq_len: usize::MAX,
