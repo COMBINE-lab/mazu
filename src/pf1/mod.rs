@@ -16,13 +16,27 @@ use log::debug;
 use kmers::naive_impl::seq_vector::SeqVector;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    index::{BaseIndex, PufferfishType},
-    refseq::RefSeqCollection,
-};
+use super::{index::BaseIndex, refseq::RefSeqCollection};
 
-use crate::Result;
+use crate::{IndexMetadata, ModIndexType, Result};
 use cpp::{DeserializeFromCpp, FromCereal, FromCompact};
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone, Copy)]
+pub enum PF1Type {
+    #[serde(alias = "dense")] // aliased to lowercase 'd' for c++ compatibility
+    Dense,
+    #[serde(alias = "sparse")]
+    Sparse,
+}
+
+impl From<PF1Type> for ModIndexType {
+    fn from(pf1_t: PF1Type) -> Self {
+        match pf1_t {
+            PF1Type::Dense => Self::PF1Dense,
+            PF1Type::Sparse => Self::PF1Sparse,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct PF1FilePaths {
@@ -123,90 +137,6 @@ pub mod consts {
     }
 }
 
-impl DeserializeFromCpp for BaseIndex {
-    fn deserialize_from_cpp<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let files = PF1FilePaths::new(dir);
-
-        let info = PF1Info::load(files.info_json);
-        //   let ref_seq = Self::load_ref_seq(&info);
-        //   let edge_vec = Self::load_edge_vec(&info);
-
-        // debug!("Loading mphf");
-        // let mphf = BooPHF::<u64>::deserialize_from_cpp(files.mphf)?;
-
-        // debug!("Loading seq");
-        // let seq = SeqVector::from_compact_serialized(files.seq)?;
-        // assert_eq!(seq.len(), info.seq_len);
-
-        // let last_seq_pos = seq.len() - (info.kmer_size as usize);
-
-        // debug!("Loading refseq");
-        // let ref_seq = if info.have_ref_seq {
-        //     Some(SeqVector::from_compact_serialized(files.ref_seq)?)
-        // } else {
-        //     None
-        // };
-
-        // debug!("Loading reflens");
-        // //TODO assert that the len of ref_seq is the sum of lens of reference sequences
-        // let ref_lens = Vec::load_from_cereal_archive(files.ref_lens)?;
-        // let ref_accum_lens = {
-        //     // TODO: note, we are appending one zero to the front so accessing the offset is easy
-        //     let mut v = Vec::load_from_cereal_archive(files.ref_accum_lens)?;
-        //     v.insert(0, 0);
-        //     v
-        // };
-        // let complete_ref_lens = Vec::load_from_cereal_archive(files.complete_ref_lens)?;
-
-        // let (ref_names, ref_exts, ctable) = Self::deserialize_contig_table(files.ctable)?;
-
-        // debug!("Loading bv");
-        // let bv = {
-        //     let mut bv = BitVector::from_compact_serialized(files.rank)?;
-        //     bv.enable_rank();
-        //     bv.enable_select();
-        //     bv
-        // };
-        // assert_eq!(bv.len(), info.seq_len);
-
-        debug!("Loaded base index");
-
-        Ok(Self {
-            // seq,
-            // last_seq_pos,
-            // mphf,
-            // bv,
-            // ref_seq,
-            // ref_lens,
-            // ref_accum_lens, // cumalative length of references
-            // _complete_ref_lens: complete_ref_lens,
-
-            // Info fields
-            index_version: info.index_version,
-            reference_gfa: info.reference_gfa,
-            k: info.kmer_size,
-            num_kmers: info.num_kmers,
-            num_contigs: info.num_contigs,
-            seq_len: info.seq_len,
-            // [omitted] have_ref_seq: info.have_ref_seq,
-            // [omitted] num_kmers: usize,
-            // [omitted] num_contigs: info.num_contigs,
-            // [omitted] seq_len: usize,
-            // [omitted] have_ref_seq: info.have_ref_seq,
-            have_edge_vec: info.have_edge_vec,
-            seq_hash: info.seq_hash,
-            name_hash: info.name_hash,
-            seq_hash_512: info.seq_hash_512,
-            name_hash_512: info.name_hash_512,
-            decoy_seq_hash: info.decoy_seq_hash,
-            decoy_name_hash: info.decoy_name_hash,
-            num_decoys: info.num_decoys,
-            first_decoy_index: info.first_decoy_index,
-            keep_duplicates: info.keep_duplicates,
-        })
-    }
-}
-
 // FIXME: Split info to a legacy LegacyInfo or V1Info that contains info-fields
 // that are have no Options. Fields like sample_size and extension_size should
 // wholly be encoded in 'sampling_type'
@@ -215,7 +145,7 @@ impl DeserializeFromCpp for BaseIndex {
 pub struct PF1Info {
     pub index_version: u64,
     pub reference_gfa: Vec<String>,
-    pub sampling_type: PufferfishType,
+    pub sampling_type: PF1Type,
 
     #[serde(rename = "k")]
     pub kmer_size: usize,
@@ -223,8 +153,8 @@ pub struct PF1Info {
     pub num_contigs: usize,
     #[serde(rename = "seq_length")]
     pub seq_len: usize,
-    pub have_ref_seq: bool,  //FIXME: has_ref_seq?
-    pub have_edge_vec: bool, //FIXME: has_edge_vec?
+    pub have_ref_seq: bool,
+    pub have_edge_vec: bool,
 
     #[serde(rename = "SeqHash")]
     pub seq_hash: String,
@@ -250,14 +180,34 @@ pub struct PF1Info {
 }
 
 impl PF1Info {
-    pub fn load<P: AsRef<Path>>(p: P) -> Self {
+    pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
         let p = p.as_ref();
+        dbg!(p);
         debug!("Loading Info from: {:?}", &p);
-        let f = File::open(p).unwrap();
+        let f = File::open(p)?;
 
         let r = BufReader::new(f);
 
-        serde_json::from_reader(r).unwrap()
+        Ok(serde_json::from_reader(r)?)
+    }
+
+    pub fn as_base_index(&self) -> BaseIndex {
+        let metadata = IndexMetadata {
+            have_edge_vec: self.have_edge_vec,
+            seq_hash: self.seq_hash.clone(),
+            name_hash: self.name_hash.clone(),
+            seq_hash_512: self.seq_hash_512.clone(),
+            name_hash_512: self.name_hash_512.clone(),
+            decoy_seq_hash: self.decoy_seq_hash.clone(),
+            decoy_name_hash: self.decoy_name_hash.clone(),
+            num_decoys: self.num_decoys,
+            first_decoy_index: self.first_decoy_index,
+            keep_duplicates: self.keep_duplicates,
+        };
+
+        BaseIndex::new()
+            .set_index_type(ModIndexType::from(self.sampling_type))
+            .set_metadata(metadata)
     }
 }
 

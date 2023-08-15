@@ -5,7 +5,7 @@ use crate::cuttlefish::{CfFiles, CfSeqToken};
 use crate::err::{Error, Result};
 use crate::refseq::RefSeqCollection;
 use crate::unitig_set::UnitigSet;
-use crate::{BaseIndex, Orientation, UnitigOcc};
+use crate::{Orientation, UnitigOcc};
 // use std::io::{Error, ErrorKind};
 use std::path::Path;
 
@@ -390,32 +390,6 @@ impl SPTCompact {
         RefSeqCollection {
             seq: None,
             prefix_sum: crate::util::prefix_sum(&self.ref_lens),
-        }
-    }
-
-    pub fn get_base_index(&self) -> BaseIndex {
-        // TODO / FIXME: fill in dummy fields
-        log::warn!("FIXME: incomplete");
-
-        let incomplete = "??? FIXME ???".to_string();
-
-        BaseIndex {
-            index_version: u64::MAX,
-            reference_gfa: Vec::new(),
-            k: self.k(),
-            num_kmers: self.unitigs.n_kmers(),
-            num_contigs: self.n_unitigs(),
-            seq_len: usize::MAX,
-            have_edge_vec: false,
-            seq_hash: incomplete.clone(),
-            name_hash: incomplete.clone(),
-            seq_hash_512: incomplete.clone(),
-            name_hash_512: incomplete.clone(),
-            decoy_seq_hash: incomplete.clone(),
-            decoy_name_hash: incomplete,
-            num_decoys: usize::MAX,
-            first_decoy_index: usize::MAX,
-            keep_duplicates: false,
         }
     }
 }

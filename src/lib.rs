@@ -24,6 +24,10 @@ pub use index::*;
 
 pub use err::{Error, Result};
 
+pub fn get_mazu_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 /// Orientation `enum` for sequences (unitigs, k-mers, etc.,)
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
 pub enum Orientation {

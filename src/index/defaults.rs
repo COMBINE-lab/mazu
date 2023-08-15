@@ -5,7 +5,7 @@ use crate::{
     index::{DenseUnitigTable, ModIndex, PiscemUnitigTable},
     kphf::{pfhash::PFHashDefault, sshash::SSHashDefault},
     spt::SPT,
-    Result,
+    BaseIndex, ModIndexType, Result,
 };
 
 use std::path::Path;
@@ -20,7 +20,8 @@ impl PufferfishDenseIndexDefault {
     }
 
     pub fn from_spt(spt: SPT) -> Result<Self> {
-        let base = spt.get_base_index();
+        let base = BaseIndex::new().set_index_type(ModIndexType::PufferfishDense);
+
         let refs = spt.get_ref_seq_collection();
 
         let sshash = PFHashDefault::from_unitig_set(spt.unitigs);

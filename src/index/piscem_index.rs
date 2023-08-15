@@ -5,7 +5,7 @@ use crate::{
     cuttlefish::CfFiles,
     dense_unitig_table::PiscemUnitigTable,
     kphf::{sshash::SSHashDefault, WyHashState},
-    ModIndex, Result,
+    BaseIndex, ModIndex, ModIndexType, Result,
 };
 
 use crate::spt_compact::SPTCompact;
@@ -22,7 +22,7 @@ impl PiscemIndex {
     }
 
     pub fn from_spt(spt: SPTCompact, w: usize, skew_param: usize) -> Result<Self> {
-        let base = spt.get_base_index();
+        let base = BaseIndex::new().set_index_type(ModIndexType::Piscem);
         let refs = spt.get_ref_seq_collection();
 
         let bh = WyHashState::default();

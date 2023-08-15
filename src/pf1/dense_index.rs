@@ -12,12 +12,12 @@ use std::path::Path;
 use super::{boophf::BooPHF, cpp::*, PF1Info};
 use crate::{
     elias_fano::EFVector,
-    index::{BaseIndex, DenseUnitigTable, ModIndex, PufferfishType},
+    index::{DenseUnitigTable, ModIndex},
     kphf::PFHash,
     pf1::PF1FilePaths,
     refseq::RefSeqCollection,
     unitig_set::UnitigSet,
-    Error, Result,
+    Result,
 };
 
 #[allow(non_camel_case_types)]
@@ -30,98 +30,69 @@ impl AsRef<UnitigSet> for DenseIndex {
     }
 }
 
-impl DenseIndex {
-    pub fn to_pf1_info(&self) -> PF1Info {
-        let base = &self.base;
-        PF1Info {
-            sampling_type: PufferfishType::DenseRS,
-            index_version: base.index_version,
-            reference_gfa: base.reference_gfa.clone(),
-            kmer_size: base.k,
-            num_kmers: self.n_kmers(),
-            num_contigs: self.n_unitigs(),
-            seq_len: self.sum_unitigs_len(),
-            have_ref_seq: self.has_refseq(),
-            have_edge_vec: base.have_edge_vec,
-            seq_hash: base.seq_hash.clone(),
-            name_hash: base.name_hash.clone(),
-            seq_hash_512: base.seq_hash_512.clone(),
-            name_hash_512: base.name_hash_512.clone(),
-            decoy_seq_hash: base.decoy_seq_hash.clone(),
-            decoy_name_hash: base.decoy_name_hash.clone(),
-            num_decoys: base.num_decoys,
-            sample_size: None, // Putting into enum would break c++ compatiblity)
-            extension_size: None,
-            first_decoy_index: base.first_decoy_index,
-            keep_duplicates: base.keep_duplicates,
-        }
-    }
-}
-
 impl DeserializeFromCpp for DenseIndex {
     fn deserialize_from_cpp<P: AsRef<Path>>(dir: P) -> Result<Self> {
         debug!("Loading base index");
-        if let Ok(base) = BaseIndex::deserialize_from_cpp(&dir) {
-            let files = PF1FilePaths::new(&dir);
+        let files = PF1FilePaths::new(&dir);
 
-            debug!("Loading Kmer PHF");
-            debug!("* Loading seq");
-            let useq = SeqVector::from_compact_serialized(files.seq)?;
+        let info = PF1Info::load(&files.info_json)?;
 
-            debug!("* Loading bv");
-            let bv = {
-                let mut bv = BitVector::from_compact_serialized(files.rank)?;
-                bv.enable_rank();
-                bv.enable_select();
-                bv
-            };
-            debug!("* Constructing unitig set");
+        debug!("Loading Kmer PHF");
+        debug!("* Loading seq");
+        let useq = SeqVector::from_compact_serialized(files.seq)?;
 
-            log::warn!("* Computing prefix sums for accumulated lenghts, need to deprecate this");
+        debug!("* Loading bv");
+        let bv = {
+            let mut bv = BitVector::from_compact_serialized(files.rank)?;
+            bv.enable_rank();
+            bv.enable_select();
+            bv
+        };
+        debug!("* Constructing unitig set");
 
-            let n_unitigs = bv.count_ones();
-            let mut accum_lens = Vec::with_capacity(n_unitigs);
-            let accum = 0;
-            accum_lens.push(accum);
-            for ui in 1..(n_unitigs + 1) {
-                let start_pos = bv.select(ui - 1).unwrap() + 1;
-                accum_lens.push(start_pos);
-            }
+        log::warn!("* Computing prefix sums for accumulated lenghts, need to deprecate this");
 
-            // dbg!(accum);
-            // dbg!(n_unitigs);
-            let accum_lens = EFVector::from_usize_slice(&accum_lens)?;
-
-            let unitigs = UnitigSet {
-                k: base.k,
-                useq,
-                accum_lens,
-                bv,
-            };
-
-            debug!("* Loading mphf");
-            let mphf = BooPHF::<u64>::deserialize_from_cpp(files.mphf)?;
-
-            debug!("* Loading pos");
-            let pos = IntVector::from_compact_serialized(files.pos)?;
-            assert_eq!(pos.len(), unitigs.n_kmers());
-
-            let k2u = PFHash::from_parts(unitigs, mphf, pos);
-
-            // debug!("Loading seq");
-            // let seq = SeqVector::from_compact_serialized(files.seq)?;
-            // assert_eq!(seq.len(), info.seq_len);
-            // let kphf = PFHash
-
-            debug!("Loading contig table");
-            let ctg_table = DenseUnitigTable::deserialize_from_cpp(&dir)?;
-
-            let refs = RefSeqCollection::deserialize_from_cpp(&dir)?;
-            let u2pos = ctg_table;
-            Ok(Self::from_parts(base, k2u, u2pos, refs))
-        } else {
-            Err(Error::IndexLoad)
+        let n_unitigs = bv.count_ones();
+        let mut accum_lens = Vec::with_capacity(n_unitigs);
+        let accum = 0;
+        accum_lens.push(accum);
+        for ui in 1..(n_unitigs + 1) {
+            let start_pos = bv.select(ui - 1).unwrap() + 1;
+            accum_lens.push(start_pos);
         }
+
+        // dbg!(accum);
+        // dbg!(n_unitigs);
+        let accum_lens = EFVector::from_usize_slice(&accum_lens)?;
+
+        let unitigs = UnitigSet {
+            k: info.kmer_size,
+            useq,
+            accum_lens,
+            bv,
+        };
+
+        debug!("* Loading mphf");
+        let mphf = BooPHF::<u64>::deserialize_from_cpp(files.mphf)?;
+
+        debug!("* Loading pos");
+        let pos = IntVector::from_compact_serialized(files.pos)?;
+        assert_eq!(pos.len(), unitigs.n_kmers());
+
+        let k2u = PFHash::from_parts(unitigs, mphf, pos);
+
+        // debug!("Loading seq");
+        // let seq = SeqVector::from_compact_serialized(files.seq)?;
+        // assert_eq!(seq.len(), info.seq_len);
+        // let kphf = PFHash
+
+        debug!("Loading contig table");
+        let ctg_table = DenseUnitigTable::deserialize_from_cpp(&dir)?;
+
+        let refs = RefSeqCollection::deserialize_from_cpp(&dir)?;
+        let u2pos = ctg_table;
+        let base = info.as_base_index();
+        Ok(Self::from_parts(base, k2u, u2pos, refs))
     }
 }
 
@@ -132,7 +103,7 @@ mod test {
         index::GetRefPos,
         kphf::{SSHash, WyHashState},
         pf1::test_utils::*,
-        MappedRefPos, Validate,
+        MappedRefPos, ModIndexType, Validate,
     };
     use kmers::naive_impl::CanonicalKmer;
 
@@ -140,7 +111,7 @@ mod test {
     fn pufferfish_type() {
         let p = to_abs_path(TINY_INDEX);
         let pi = DenseIndex::deserialize_from_cpp(p).unwrap();
-        assert_eq!(pi.to_pf1_info().sampling_type, PufferfishType::DenseRS);
+        assert_eq!(pi.index_type(), ModIndexType::PF1Dense);
     }
 
     #[test]

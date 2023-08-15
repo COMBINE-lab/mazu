@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     kphf::{K2UPos, K2U},
     refseq::{RefSeqCollection, RefSeqIter, RefSeqSlice},
-    spt::SPT,
     Orientation,
 };
 
@@ -53,6 +52,12 @@ pub struct ModIndex<H, T> {
     u2pos: T,
     k2u: H,
     refs: RefSeqCollection, // NOTE refseq collection can contain ref lengths but not sequences
+}
+
+impl<H, T> ModIndex<H, T> {
+    pub fn index_type(&self) -> ModIndexType {
+        self.base.index_type.clone()
+    }
 }
 
 impl<H, T> ModIndex<H, T>
@@ -215,16 +220,51 @@ pub fn project_onto_u_occ(k: usize, k2upos: &K2UPos, occ: &UnitigOcc) -> MappedR
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct BaseIndex {
-    // Info fields
-    // pub info: Info,
-    pub index_version: u64,
-    pub reference_gfa: Vec<String>,
+    // basic provenance information
+    mazu_version: String,
+    index_type: ModIndexType,
+    // pub reference_gfa: Vec<String>, //TODO figure out what to do about reference / reduced GFA and provenance info
+
     // pub sampling_type: PufferfishType,
-    pub k: usize,
-    pub num_kmers: usize,
-    pub num_contigs: usize,
-    pub seq_len: usize,
+    // pub k: usize,
+    // pub num_kmers: usize,
+    // pub num_contigs: usize,
+    // pub seq_len: usize,
     // have_ref_seq: bool,
+    // pub have_edge_vec: bool,
+    // Traversal
+    // pub last_seq_pos: usize,
+    metadata: Option<IndexMetadata>,
+}
+
+impl BaseIndex {
+    pub fn new() -> Self {
+        Self {
+            mazu_version: crate::get_mazu_version(),
+            index_type: ModIndexType::unknown(),
+            metadata: None,
+        }
+    }
+
+    pub fn set_index_type(mut self, index_type: ModIndexType) -> Self {
+        self.index_type = index_type;
+        self
+    }
+
+    pub fn set_metadata(mut self, metadata: IndexMetadata) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+}
+
+impl Default for BaseIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub struct IndexMetadata {
     pub have_edge_vec: bool,
     pub seq_hash: String,
     pub name_hash: String,
@@ -235,64 +275,28 @@ pub struct BaseIndex {
     pub num_decoys: usize,
     pub first_decoy_index: usize,
     pub keep_duplicates: bool,
-    // Traversal
-    // pub seq: SeqVector,
-    // pub last_seq_pos: usize,
-
-    // #[serde(skip)]
-    // pub mphf: BooPHF<u64>,
-    // #[serde(with = "serde_ext")]
-    // pub bv: BitVector, //contig boundaries
-    // pub ref_seq: Option<SeqVector>,
-    // pub ref_lens: Vec<u32>,
-    // pub _complete_ref_lens: Vec<u32>,
-    // pub ref_accum_lens: Vec<u64>,
-    // ref_names: Vec<String>,
-    // _ref_exts: Vec<u32>,
 }
 
-impl BaseIndex {
-    pub fn from_spt(spt: &SPT) -> Self {
-        // TODO / FIXME: fill in dummy fields
-        log::warn!("FIXME: incomplete");
-
-        let incomplete = "??? FIXME ???".to_string();
-
-        Self {
-            index_version: u64::MAX,
-            reference_gfa: Vec::new(),
-            k: spt.k(),
-            num_kmers: spt.unitigs.n_kmers(),
-            num_contigs: spt.n_unitigs(),
-            seq_len: usize::MAX,
-            have_edge_vec: false,
-            seq_hash: incomplete.clone(),
-            name_hash: incomplete.clone(),
-            seq_hash_512: incomplete.clone(),
-            name_hash_512: incomplete.clone(),
-            decoy_seq_hash: incomplete.clone(),
-            decoy_name_hash: incomplete,
-            num_decoys: usize::MAX,
-            first_decoy_index: usize::MAX,
-            keep_duplicates: false,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone, Copy)]
-pub enum PufferfishType {
-    #[serde(rename = "dense")]
-    Dense,
-    #[serde(rename = "sparse")]
-    Sparse,
-    DenseRS,
-    SparseRS,
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+pub enum ModIndexType {
+    PF1Dense,  // Dense index deserialized from pufferfish (C++)
+    PF1Sparse, // Sparse index deserialized from pufferfish (C++)
+    PufferfishDense,
+    // PufferfishSparse,
+    Piscem,
     // SparseRS(PosSamplingConfig),
     // SparseContigDensePos(ContigSamplingStrategy),
     // SparseContigSparsePos(ContigSamplingStrategy),
     // // SparseContigSparsePos(ContigSamplingStrategy, PosSamplingConfig),
     // SparseDenseV2(ContigSamplingStrategy),
     // SparseSparseV2(ContigSamplingStrategy),
+    Custom(String), // Custom index type with description
+}
+
+impl ModIndexType {
+    fn unknown() -> Self {
+        Self::Custom("Custom, unspecified, modular index type".to_string())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
