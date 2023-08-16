@@ -25,9 +25,9 @@ pub use validate::Validate;
 /// a mapped k-mer occurs on a reference
 #[derive(Debug, Clone, PartialEq)]
 pub struct MappedRefPos {
-    ref_id: usize,
-    pos: usize,
-    o: Orientation,
+    pub ref_id: usize,
+    pub pos: usize,
+    pub o: Orientation,
 }
 
 impl MappedRefPos {
