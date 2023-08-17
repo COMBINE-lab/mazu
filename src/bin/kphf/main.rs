@@ -101,8 +101,6 @@ fn main() -> Result<()> {
 }
 
 fn build(args: BuildArgs) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init().unwrap();
-
     match args.hash {
         BuildHash::PFHash {
             input_prefix,
@@ -213,8 +211,8 @@ fn stats(args: StatsArgs) -> Result<()> {
     match ext.to_str().context("Canot match ext")? {
         SSHASH_EXT => {
             let fp = File::open(input)?;
-            let hash: SSHashDefault = bincode::deserialize_from(fp)?;
-            hash.print_stats();
+            let sshash: SSHashDefault = bincode::deserialize_from(fp)?;
+            sshash.print_stats();
             Ok(())
         }
         PFHASH_EXT => {

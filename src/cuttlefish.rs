@@ -87,7 +87,7 @@ pub struct CfBasicInfo {
 }
 
 impl CfInfo {
-    pub fn from_path<P: AsRef<Path>>(fp: P) -> crate::err::Result<Self> {
+    pub fn from_path<P: AsRef<Path>>(fp: P) -> Result<Self> {
         let fp = fp.as_ref();
         assert!(fp.exists());
         let f = std::fs::File::open(fp).expect("Could not open info file");

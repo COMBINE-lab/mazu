@@ -11,10 +11,11 @@ use simple_sds::{
 use std::{
     collections::HashMap,
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader}, path::Path,
 };
 
 use crate::{
+    Result,
     cuttlefish::{CfFiles, CfInfo},
     elias_fano::EFVector,
 };
@@ -103,6 +104,12 @@ impl UnitigSet {
         })
     }
 
+    /// Create a `UnitigSet` from `cuttlefish` prefix
+    pub fn from_cf_prefix<P: AsRef<Path>>(prefix: P) -> Result<(Self, HashMap<usize, usize>)> {
+        let cf_files = CfFiles::new(prefix);
+        Self::from_cf_reduced_gfa(&cf_files)
+    }
+
     /// Create a `UnitigSet` from `cuttlefish` output
     ///
     /// Consumes the files in "reduced GFA format" from `cuttlefish`.
@@ -110,7 +117,7 @@ impl UnitigSet {
     /// (that are not sequential) to sequention IDs [0..N] for N unitig sequences.
     pub fn from_cf_reduced_gfa(
         cf_files: &CfFiles,
-    ) -> crate::err::Result<(Self, HashMap<usize, usize>)> {
+    ) -> Result<(Self, HashMap<usize, usize>)> {
         let cf_info = CfInfo::from_path(&cf_files.json)?;
 
         let len = cf_info.total_len();

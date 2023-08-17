@@ -92,37 +92,73 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
         // 1. collect minimizers
         log::info!("Collecting all canonical super-kmers (and corresponding minimizer positions)");
 
-        let mut super_kmers = Vec::new();
+        let mut minimizers = Vec::new();
         let mut useq_offset = 0;
+
         for ui in 0..unitigs.n_unitigs() {
             let u = unitigs.unitig_seq(ui);
-            for mut skmer in u.iter_canonical_super_kmers(unitigs.k(), w, build_hasher.clone()) {
-                skmer.inc_pos(useq_offset);
-                super_kmers.push(skmer);
+
+            {
+                let fw_mm_iter = u.iter_canonical_minimizers(unitigs.k(), w, build_hasher.clone())
+                    .filter(|(mm, is_fw_canonical)| *is_fw_canonical)
+                    .map(|(mm, _)| mm);
+
+                let mut prev_mm = None;
+                for mut mm in fw_mm_iter {
+                    mm.pos += useq_offset;
+                    let curr_mm = Some(mm.clone());
+                    if curr_mm != prev_mm {
+                        minimizers.push(mm.clone());
+                    }
+                    prev_mm = curr_mm;
+                }
             }
+
+            {
+                let rc_mm_iter = u.iter_canonical_minimizers(unitigs.k(), w, build_hasher.clone())
+                    .filter(|(mm, is_fw_canonical)| !*is_fw_canonical)
+                    .map(|(mm, _)| mm);
+
+                let mut prev_mm = None;
+                for mut mm in rc_mm_iter {
+                    mm.pos += useq_offset;
+                    let curr_mm = Some(mm.clone());
+                    if curr_mm != prev_mm {
+                        minimizers.push(mm.clone());
+                    }
+                    prev_mm = curr_mm;
+                }
+            }
+
+            // for mut skmer in u.iter_canonical_super_kmers(unitigs.k(), w, build_hasher.clone()) {
+            //     skmer.inc_pos(useq_offset);
+
+            //     super_kmers.push(skmer);
+            // }
             useq_offset += u.len();
         }
+
         // 2. Sort and deduplicate
-        log::info!("Found {} super-k-mers", super_kmers.len());
+        log::info!("Found {} unique minimizer occs", minimizers.len());
         log::info!("Deduplicating minimizer occurrences by sorting... ");
 
-        log::info!("\t* sorting...");
-        super_kmers.par_sort_by_key(|sk| sk.mmer_word()); // sort super-kmers by minimizers
+        log::info!("\t* sorting unique minimizer occurrences...");
+        minimizers.par_sort_by_key(|sk| sk.as_u64()); // sort occurrences by their sequence
 
-        log::info!("\t* deduplicating...");
+        log::info!("\t* deduplicating to get minimizer set...");
         let mut mm_occs = Vec::new(); // mm_occs[i] is the number of times minimizer_i occurs
         let mut mm_set = Vec::new(); // mm_set[i] contains minimizer_i
         {
-            let mut curr_mm = super_kmers[0].mmer_word();
+            let mut curr_mm = minimizers[0].as_u64();
             let mut curr_occs = 0_usize;
 
-            for sk in &super_kmers {
+            for mm in &minimizers {
                 // pos.push(mm.pos);
-                if curr_mm != sk.mmer_word() {
+                if curr_mm != mm.as_u64() {
                     mm_occs.push(curr_occs);
                     mm_set.push(curr_mm);
 
-                    curr_mm = sk.mmer_word();
+                    curr_mm = mm.as_u64();
                     curr_occs = 0;
                 }
                 curr_occs += 1;
@@ -151,14 +187,9 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
         // 5) Insert Minimizer positions according to mphf values
         log::info!("Inserting minimizer positions... ");
         log::info!("\t* {} unique minimizers", mm_set.len());
-        log::info!("\t* {} total super k-mer occurrences", super_kmers.len());
-        log::warn!("\t* FIXME / TODO: deduplicate mmer positions from unique super-k-mer occs");
-        // Note: overlapping super-k-mers may have the same minimizer
-        // E.g. given s0, s1, s2, occurring consecutively on reference. s0 and s2 may have the same
-        // minimizer (at the same position) but may be broken by a canonical k-mer with a different minimizer
-        // in s1.
+        log::info!("\t* {} total minimizer occurrences", minimizers.len());
 
-        let mut pos = vec![usize::MAX; super_kmers.len()];
+        let mut pos = vec![usize::MAX; minimizers.len()];
         let ptr: crate::util::UnsafeSlice<'_, usize> = crate::util::UnsafeSlice::new(&mut pos);
 
         // prefix sum over number of occurrences of mmer_i in mm_occs[i] yields range
@@ -175,7 +206,7 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
             // 3) get index of interval corresponding to hash value
             let sh = occs_prefix_sum[h];
 
-            let positions = super_kmers[s..e].iter().map(|mm| mm.mmer_pos());
+            let positions = minimizers[s..e].iter().map(|mm| mm.pos);
             for (i, p) in positions.enumerate() {
                 unsafe {
                     ptr.write(sh + i, p);
@@ -189,31 +220,50 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
         } else {
             log::info!("Building skew index");
             log::info!("\t* collecting skew super-k-mers...");
-            let mut km_set = Vec::new();
-            let mut km_positions = Vec::new();
-            let skew_min = skew_param; // 2^l
+            // let mut km_set = Vec::new();
+            // let mut km_positions = Vec::new();
+            let mut skew_tuples = Vec::new();
+            let skew_min = skew_param;
             for (i, &occs) in mm_occs.iter().enumerate() {
                 if occs <= skew_min {
                     continue;
                 }
                 // otherwise stick it in the skew index!
 
-                // Get indexes of interval pointing at corresponding super k-mers
+                // Get indexes of interval pointing at corresponding minimizers
                 let s = ranges[i];
                 let e = ranges[i + 1];
-                for sk in &super_kmers[s..e] {
-                    let start_pos = sk.start_pos();
-                    let n_kmers = sk.n_kmers();
-                    // collect words and positions
+                for mm in &minimizers[s..e] {
+                    let start_pos = {
+                        if mm.pos < (unitigs.k() - w) {
+                            0
+                        } else {
+                            mm.pos - (unitigs.k() - w)
+                        }
+                    };
+                    let n_kmers = unitigs.k() - w + 1;
+
+                    // let start_pos = sk.start_pos();
+                    // let n_kmers = sk.n_kmers();
+                    // collect kmers overlapping minimizer positionss
                     for offset in 0..n_kmers {
+
                         let pos = start_pos + offset;
-                        let km = unitigs.get_kmer_from_useq_pos(pos);
-                        let word = km.to_canonical_word();
-                        km_set.push(word);
-                        km_positions.push(pos);
+                        if unitigs.is_valid_useq_pos(pos) {
+                            let km = unitigs.get_kmer_from_useq_pos(pos);
+                            let word = km.to_canonical_word();
+                            skew_tuples.push((word, pos));
+                        }
                     }
                 }
             }
+
+            // deduplicate skew tuples
+            log::info!("\t* extracted {} kmers overlapping skew minimizers", skew_tuples.len());
+            log::info!("\t* deduplicating {} candidate skew kmers", skew_tuples.len());
+            skew_tuples.par_sort_by_key(|tup| tup.0);
+            skew_tuples.dedup_by_key(|tup| tup.0);
+            let km_set: Vec<u64> = skew_tuples.iter().map(|tup| tup.0).collect();
 
             log::info!("\t* indexing {} kmers in skew index...", km_set.len());
             log::info!("\t* building skew mphf...");
@@ -222,7 +272,7 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
             let mut skew_pos = vec![0; km_set.len()];
 
             log::info!("\t* inserting skew k-mer positions");
-            for (&km, &pos) in km_set.iter().zip(&km_positions) {
+            for (km, pos) in skew_tuples {
                 let h = skew_mphf.try_hash(&km).unwrap() as usize;
                 skew_pos[h] = pos;
             }
@@ -307,12 +357,22 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
             "occs_prefix_sum: {} bytes",
             self.occs_prefix_sum.num_bits() / 8
         );
+
+        dbg!(self.occs_prefix_sum.len());
+        dbg!(self.occs_prefix_sum.low_bit_width());
+        dbg!(self.occs_prefix_sum.num_high_bits());
+
+        dbg!(self.pos.width());
+        dbg!(self.pos.len());
+        dbg!(self.n_minimizers());
+        dbg!(self.n_kmers());
+
         log::info!("pos:             {} bytes", self.pos.num_bits() / 8);
         log::info!("unitig set:      {} bytes", self.unitigs.num_bits() / 8);
 
         log::info!(
             "occs_prefix_sum: {} bpk",
-            self.occs_prefix_sum.num_bits() / self.n_kmers()
+            self.occs_prefix_sum.num_bits() as f64 / self.n_kmers() as f64
         );
         log::info!(
             "pos:             {} bpk",

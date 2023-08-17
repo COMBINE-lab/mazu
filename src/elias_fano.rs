@@ -48,6 +48,10 @@ impl EFVector {
         self.l as usize
     }
 
+    pub fn num_high_bits(&self) -> usize {
+        self.high_bits.num_bits()
+    }
+
     pub fn from_iter<I>(it: I, u: usize) -> crate::err::Result<Self>
     where
         I: Iterator<Item = u64> + ExactSizeIterator,
