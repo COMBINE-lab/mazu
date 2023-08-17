@@ -182,7 +182,6 @@ pub struct PF1Info {
 impl PF1Info {
     pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
         let p = p.as_ref();
-        dbg!(p);
         debug!("Loading Info from: {:?}", &p);
         let f = File::open(p)?;
 

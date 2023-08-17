@@ -349,23 +349,20 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
     }
 
     pub fn print_stats(&self) {
-        log::info!("*** STATISTICS");
+        log::info!("*** UnitigSet info");
+        self.unitigs.print_stats();
+
+        log::info!("*** SSHash info");
         log::info!("kmers: {}", self.n_kmers());
+        log::info!("n minimizers: {}", self.n_minimizers());
+        log::info!("n minimizer occs: {}", self.pos.len());
+        log::info!("positions encoded in {} bit words:", self.pos.width());
         log::info!("unitigs: {}", self.n_unitigs());
         log::info!("Total size:      {} bytes", self.num_bits() / 8);
         log::info!(
             "occs_prefix_sum: {} bytes",
             self.occs_prefix_sum.num_bits() / 8
         );
-
-        dbg!(self.occs_prefix_sum.len());
-        dbg!(self.occs_prefix_sum.low_bit_width());
-        dbg!(self.occs_prefix_sum.num_high_bits());
-
-        dbg!(self.pos.width());
-        dbg!(self.pos.len());
-        dbg!(self.n_minimizers());
-        dbg!(self.n_kmers());
 
         log::info!("pos:             {} bytes", self.pos.num_bits() / 8);
         log::info!("unitig set:      {} bytes", self.unitigs.num_bits() / 8);
@@ -386,9 +383,6 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
             "bits / kmer:     {}",
             (self.num_bits() as f64) / (self.n_kmers() as f64)
         );
-
-        log::info!("*** UnitigSet stats");
-        self.unitigs.print_stats();
     }
 
     pub fn from_unitig_set_no_skew_index(

@@ -187,14 +187,36 @@ fn validate(args: ValidateArgs) -> Result<()> {
     match ext.to_str().context("Canot match ext")? {
         SSHASH_EXT => {
             let fp = File::open(input)?;
+            log::info!("Loading SSHash");
             let hash: SSHashDefault = bincode::deserialize_from(fp)?;
+            log::info!("Loaded!");
+
+            log::info!("Starting validation...");
+            let start = std::time::Instant::now();
             hash.validate_self_parallel();
+            let elapsed = start.elapsed();
+            log::info!("\t {}s to validate", elapsed.as_secs_f64());
+            let nanos = elapsed.as_nanos() as f64;
+            let ns_per_km = nanos / hash.n_kmers() as f64;
+            log::info!("\t {}ns per km to validate", ns_per_km);
+            log::info!("\t OK!");
             Ok(())
         }
         PFHASH_EXT => {
             let fp = File::open(input)?;
+            log::info!("Loading SSHash");
             let hash: PFHashDefault = bincode::deserialize_from(fp)?;
+            log::info!("Loaded!");
+
+            log::info!("Starting validation...");
+            let start = std::time::Instant::now();
             hash.validate_self_parallel();
+            let elapsed = start.elapsed();
+            log::info!("\t {}s to validate", elapsed.as_secs_f64());
+            let nanos = elapsed.as_nanos() as f64;
+            let ns_per_km = nanos / hash.n_kmers() as f64;
+            log::info!("\t {}ns per km to validate", ns_per_km);
+            log::info!("\t OK!");
             Ok(())
         }
 
