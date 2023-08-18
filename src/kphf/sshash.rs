@@ -10,7 +10,7 @@ use simple_sds::{
 use std::hash::BuildHasher;
 
 use super::{K2UPos, WyHashState, K2U};
-use crate::{elias_fano::EFVector, unitig_set::UnitigSet, Result};
+use crate::{caching::StreamingK2U, elias_fano::EFVector, unitig_set::UnitigSet, Result};
 
 #[allow(non_camel_case_types)]
 pub(crate) type mphf_t = boomphf::Mphf<u64>;
@@ -99,8 +99,9 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
             let u = unitigs.unitig_seq(ui);
 
             {
-                let fw_mm_iter = u.iter_canonical_minimizers(unitigs.k(), w, build_hasher.clone())
-                    .filter(|(mm, is_fw_canonical)| *is_fw_canonical)
+                let fw_mm_iter = u
+                    .iter_canonical_minimizers(unitigs.k(), w, build_hasher.clone())
+                    .filter(|(_, is_fw_canonical)| *is_fw_canonical)
                     .map(|(mm, _)| mm);
 
                 let mut prev_mm = None;
@@ -115,8 +116,9 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
             }
 
             {
-                let rc_mm_iter = u.iter_canonical_minimizers(unitigs.k(), w, build_hasher.clone())
-                    .filter(|(mm, is_fw_canonical)| !*is_fw_canonical)
+                let rc_mm_iter = u
+                    .iter_canonical_minimizers(unitigs.k(), w, build_hasher.clone())
+                    .filter(|(_, is_fw_canonical)| !*is_fw_canonical)
                     .map(|(mm, _)| mm);
 
                 let mut prev_mm = None;
@@ -247,7 +249,6 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
                     // let n_kmers = sk.n_kmers();
                     // collect kmers overlapping minimizer positionss
                     for offset in 0..n_kmers {
-
                         let pos = start_pos + offset;
                         if unitigs.is_valid_useq_pos(pos) {
                             let km = unitigs.get_kmer_from_useq_pos(pos);
@@ -259,8 +260,14 @@ impl<BH: BuildHasher + Clone> SSHashBuilder<mphf_t, BH> {
             }
 
             // deduplicate skew tuples
-            log::info!("\t* extracted {} kmers overlapping skew minimizers", skew_tuples.len());
-            log::info!("\t* deduplicating {} candidate skew kmers", skew_tuples.len());
+            log::info!(
+                "\t* extracted {} kmers overlapping skew minimizers",
+                skew_tuples.len()
+            );
+            log::info!(
+                "\t* deduplicating {} candidate skew kmers",
+                skew_tuples.len()
+            );
             skew_tuples.par_sort_by_key(|tup| tup.0);
             skew_tuples.dedup_by_key(|tup| tup.0);
             let km_set: Vec<u64> = skew_tuples.iter().map(|tup| tup.0).collect();
@@ -421,6 +428,10 @@ impl<T: BuildHasher + Clone> SSHash<mphf_t, T> {
                 })
             }
         }
+    }
+
+    pub fn as_streaming(&self) -> StreamingK2U<'_, Self> {
+        StreamingK2U::new(self)
     }
 }
 

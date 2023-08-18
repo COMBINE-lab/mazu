@@ -140,11 +140,6 @@ impl<T: BufRead> Iterator for FastaReader<T> {
             self.seq_buf.push_str(&seq);
         }
 
-        if self.seq_buf.contains('N') {
-            log::warn!("FIXME inserting A for Ns");
-            self.seq_buf = self.seq_buf.replace('N', "A");
-        }
-
         Some(FastaRecord {
             name: name.to_string(),
             seq: self.seq_buf.clone(),

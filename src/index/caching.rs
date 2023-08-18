@@ -1,23 +1,22 @@
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-    path::Path,
-};
+use std::{fs::File, io::BufReader, path::Path};
 
 use kmers::naive_impl::{CanonicalKmer, CanonicalKmerIterator, MatchType};
 
 use crate::{
     kphf::{K2UPos, K2U},
     unitig_set::UnitigSet,
+    util::FastaReader,
     MappedRefPos, ModIndex, ProjectedHits, U2Pos, UnitigOcc,
 };
 
+#[derive(Clone)]
 pub struct StreamingK2U<'a, T> {
     is_warm: bool,
     prev_k2upos: K2UPos,
     k2u: &'a T,
 }
 
+#[derive(Clone)]
 pub struct CachingU2Pos<'a, T>
 where
     T: U2Pos,
@@ -35,7 +34,11 @@ where
     u2pos: &'a T,
 }
 
-pub struct StreamingIndex<'a, K, U: U2Pos> {
+#[derive(Clone)]
+pub struct StreamingIndex<'a, K, U: U2Pos>
+where
+    U::EncodedOccs<'a>: Clone,
+{
     k2u: StreamingK2U<'a, K>,
     u2pos: CachingU2Pos<'a, U>,
 }
@@ -206,33 +209,17 @@ where
     pub fn validate_fasta<P: AsRef<Path>>(&mut self, fp: P) {
         let f = File::open(fp).unwrap();
         let f = BufReader::new(f);
+        let rdr = FastaReader::new(f);
 
-        let mut lines = f.lines();
-        let _k = self.k();
+        // collect seqs
+        let recs: Vec<(usize, Vec<u8>)> = rdr
+            .into_iter()
+            .map(|rec| rec.seq.as_bytes().to_vec())
+            .enumerate()
+            .collect();
 
-        // let mut ref_name = String::new(); // FIXME: handle ref name too?
-        let mut seq_buf = Vec::new();
-        let mut ref_id = -1_isize;
-
-        loop {
-            let line: Option<Result<String, std::io::Error>> = lines.next();
-
-            if let Some(seq) = line {
-                let seq = seq.unwrap();
-                let seq = seq.as_bytes();
-                if seq.starts_with(b">") {
-                    self.validate_ckmers(ref_id as usize, &seq_buf);
-                    ref_id += 1;
-                    // ref_name = seq;
-                    seq_buf.clear();
-                } else {
-                    seq_buf.extend_from_slice(seq);
-                }
-            } else {
-                self.validate_ckmers(ref_id as usize, &seq_buf);
-                break;
-            }
-        }
+        recs.iter()
+            .for_each(|(ri, seq)| self.validate_ckmers(*ri, seq));
     }
 }
 

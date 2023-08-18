@@ -36,6 +36,7 @@ impl RefSeqCollection {
     }
 
     pub fn from_fasta<P: AsRef<Path>>(p: P) -> std::io::Result<Self> {
+        // FIXME: use util::FastaReader instead
         log::warn!("Note that 'A' is inserted for each 'N' in any polyN stretch");
         let f = File::open(p)?;
         let f = BufReader::new(f);
@@ -77,7 +78,8 @@ impl RefSeqCollection {
     }
 
     pub fn from_fasta_w_min_len<P: AsRef<Path>>(p: P, min_len: usize) -> std::io::Result<Self> {
-        log::warn!("As inserted for polyNs");
+        // FIXME: use util::FastaReader instead
+        log::warn!("Note that 'A' is inserted for each 'N' in any polyN stretch");
         let f = File::open(p)?;
         let f = BufReader::new(f);
         let mut buf = String::new();

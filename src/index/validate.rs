@@ -1,15 +1,16 @@
 use kmers::naive_impl::{CanonicalKmer, CanonicalKmerIterator};
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-    path::Path,
-};
+use rayon::prelude::*;
+use std::{fs::File, io::BufReader, path::Path};
+
+use crate::util::FastaReader;
 
 use super::{GetRefPos, ModIndex, U2Pos, K2U};
 
 pub trait Validate {
     fn validate_self(&self);
-    fn validate_fasta<P: AsRef<Path>>(&self, p: P);
+    fn validate_fasta<P: AsRef<Path>>(&self, p: P)
+    where
+        Self: Sync;
     fn validate_ckmers(&self, ri: usize, seq: &[u8]);
 }
 
@@ -79,35 +80,22 @@ where
         }
     }
 
-    // Validate against a fasta file
-    fn validate_fasta<P: AsRef<Path>>(&self, fp: P) {
+    fn validate_fasta<P: AsRef<Path>>(&self, fp: P)
+    where
+        Self: Sync,
+    {
         let f = File::open(fp).unwrap();
         let f = BufReader::new(f);
+        let rdr = FastaReader::new(f);
 
-        let mut lines = f.lines();
+        // collect seqs
+        let recs: Vec<(usize, Vec<u8>)> = rdr
+            .into_iter()
+            .map(|rec| rec.seq.as_bytes().to_vec())
+            .enumerate()
+            .collect();
 
-        // let mut ref_name = String::new(); // FIXME: handle ref name too?
-        let mut seq_buf = Vec::new();
-        let mut ref_id = -1_isize;
-
-        loop {
-            let line: Option<Result<String, std::io::Error>> = lines.next();
-
-            if let Some(seq) = line {
-                let seq = seq.unwrap();
-                let seq = seq.as_bytes();
-                if seq.starts_with(b">") {
-                    self.validate_ckmers(ref_id as usize, &seq_buf);
-                    ref_id += 1;
-                    // ref_name = seq;
-                    seq_buf.clear();
-                } else {
-                    seq_buf.extend_from_slice(seq);
-                }
-            } else {
-                self.validate_ckmers(ref_id as usize, &seq_buf);
-                break;
-            }
-        }
+        recs.par_iter()
+            .for_each(|(ri, seq)| self.validate_ckmers(*ri, seq));
     }
 }
