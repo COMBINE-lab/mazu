@@ -156,6 +156,7 @@ impl FromStr for CfSeqToken {
 // which are:
 // - <cfid><o>, where cfid is unique ID cuttlefish assigns to a unitig, and o = + if forward and - otherwise
 // - N<n>, for a polyN stretch of length n
+#[derive(Debug)]
 pub struct CfSeqIterator<P> {
     lines: std::io::Lines<P>,
 }

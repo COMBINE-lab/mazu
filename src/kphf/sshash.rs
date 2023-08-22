@@ -15,6 +15,8 @@ use crate::{caching::StreamingK2U, elias_fano::EFVector, unitig_set::UnitigSet, 
 #[allow(non_camel_case_types)]
 pub(crate) type mphf_t = boomphf::Mphf<u64>;
 pub type SSHashDefault = SSHash<mphf_t, WyHashState>;
+
+#[derive(Debug, Clone)]
 pub struct SSHashBuilder<MPHF, T: BuildHasher> {
     w: usize,
     unitigs: UnitigSet,

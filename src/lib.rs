@@ -1,4 +1,8 @@
+// #[warn(missing_docs)]
+#![warn(missing_debug_implementations)]
+
 // Basic data structures, utilities, errors
+/// Elias-Fano compression
 pub mod elias_fano;
 pub mod err;
 pub mod util;

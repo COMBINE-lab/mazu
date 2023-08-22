@@ -111,6 +111,7 @@ impl UnitigOcc {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct TileOccTable {
     pub(crate) ctable: IntVector, // inv list of unitig occs (encoded with the min. # of bits) // TODO rename this
     pub(crate) ref_shift: usize,  // the amount we have to shift an entry to get the reference
@@ -187,6 +188,7 @@ impl TileOccTable {
 // Note:
 // - Perhaps update to also store polyN positions?
 // - Could dump CuttlefishID-to-UnitigID mapping for future builds?
+#[derive(Debug, Clone)]
 pub struct SPTCompact {
     pub unitigs: UnitigSet,
     pub ref_names: Vec<String>,

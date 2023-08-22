@@ -269,11 +269,13 @@ pub struct SeqVecSliceCanonicalKmers<'a> {
 
 /// An `IntoIterator` for the chunked iterator that iterates over canonical k-mer iterators
 /// over each unitig sequence
+#[derive(Debug, Clone)]
 pub struct ChunkedUnitigSetCanonicalKmers<'a> {
     unitigs: &'a UnitigSet,
 }
 
 /// A chunked iterator that iterates over canonical k-mer iterators over each unitig sequence
+#[derive(Debug, Clone)]
 pub struct ChunkedUnitigIterator<'a> {
     unitigs: &'a UnitigSet,
     curr: usize,
