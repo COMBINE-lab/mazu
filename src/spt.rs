@@ -11,6 +11,7 @@ use std::path::Path;
 // Note:
 // - Perhaps update to also store polyN positions?
 // - Could dump CuttlefishID-to-UnitigID mapping for future builds?
+#[derive(Debug, Clone)]
 pub struct SPT {
     pub unitigs: UnitigSet,
     pub ref_names: Vec<String>,

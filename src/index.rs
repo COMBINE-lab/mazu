@@ -347,7 +347,10 @@ impl UnitigOcc {
 }
 
 pub trait U2Pos {
-    type EncodedOccs<'a>
+    // trait bounds for Clone and Debug to make GAT make sense,
+    // otherwise U2Pos becomes clumsy to use, requiring bounds for
+    // Clone and Debug on the GAT
+    type EncodedOccs<'a>: Clone + std::fmt::Debug
     where
         Self: 'a;
     fn encoded_unitig_occs(&self, ui: usize) -> Self::EncodedOccs<'_>;
@@ -373,6 +376,7 @@ impl<H: K2U, T> ModIndex<H, T> {
     }
 }
 
+#[derive(Debug)]
 pub struct RefSeqContigIterator<'a, 'b, K> {
     // start position of current contig
     pos: usize,
@@ -381,6 +385,7 @@ pub struct RefSeqContigIterator<'a, 'b, K> {
     k2u: &'a K,
 }
 
+#[derive(Debug)]
 pub struct RefSeqUnitigOcc {
     pub unitig_id: usize,
     pub unitig_len: usize,

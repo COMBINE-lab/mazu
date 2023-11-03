@@ -75,7 +75,7 @@ impl U2Pos for DenseUnitigTable {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OccsRange {
     start: usize,
     end: usize,

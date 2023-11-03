@@ -9,14 +9,14 @@ use crate::{
     MappedRefPos, ModIndex, ProjectedHits, U2Pos, UnitigOcc,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct StreamingK2U<'a, T> {
     is_warm: bool,
     prev_k2upos: K2UPos,
     k2u: &'a T,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CachingU2Pos<'a, T>
 where
     T: U2Pos,
@@ -34,11 +34,8 @@ where
     u2pos: &'a T,
 }
 
-#[derive(Clone)]
-pub struct StreamingIndex<'a, K, U: U2Pos>
-where
-    U::EncodedOccs<'a>: Clone,
-{
+#[derive(Debug, Clone)]
+pub struct StreamingIndex<'a, K, U: U2Pos> {
     k2u: StreamingK2U<'a, K>,
     u2pos: CachingU2Pos<'a, U>,
 }
@@ -109,7 +106,6 @@ where
 impl<'a, T> CachingU2Pos<'a, T>
 where
     T: U2Pos,
-    T::EncodedOccs<'a>: Clone,
 {
     pub fn new(u2pos: &'a T) -> Self {
         Self {
@@ -145,7 +141,6 @@ where
 impl<'a, K, U> StreamingIndex<'a, K, U>
 where
     U: U2Pos,
-    U::EncodedOccs<'a>: Clone,
     K: K2U + AsRef<UnitigSet>,
 {
     pub fn k(&self) -> usize {
@@ -226,7 +221,6 @@ where
 impl<'a, K, U> ModIndex<K, U>
 where
     U: U2Pos,
-    U::EncodedOccs<'a>: Clone,
     K: K2U + AsRef<UnitigSet>,
     Self: 'a,
 {

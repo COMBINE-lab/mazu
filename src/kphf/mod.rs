@@ -29,7 +29,7 @@ impl K2UPos {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WyHashState(u64);
 
 impl WyHashState {

@@ -213,6 +213,7 @@ impl RefSeqSlice<'_> {
 }
 
 // Iterator over references
+#[derive(Debug)]
 pub struct RefSeqIter<'a> {
     ref_id: usize,
     refs: &'a RefSeqCollection,

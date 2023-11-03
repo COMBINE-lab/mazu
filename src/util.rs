@@ -89,6 +89,7 @@ impl<'a, T> UnsafeSlice<'a, T> {
 ///
 /// Returned records does no processing to FASTA record names, returning
 /// FASTA header verbatim (following `>`).
+#[derive(Debug)]
 pub struct FastaReader<T: BufRead> {
     lines: Peekable<Lines<T>>,
     seq_buf: String,
