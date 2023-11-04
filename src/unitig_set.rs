@@ -5,7 +5,8 @@ use kmers::naive_impl::{
 use serde::{Deserialize, Serialize};
 use simple_sds::{
     bit_vector::BitVector,
-    ops::Rank,
+    ops::{BitVec, Rank, Select, PredSucc},
+    sparse_vector::{SparseBuilder, SparseVector},
     raw_vector::{AccessRaw, RawVector},
 };
 use std::{
@@ -20,6 +21,122 @@ use crate::{
     elias_fano::EFVector,
     Result,
 };
+
+
+/// Compact encoding for a collection of unitigs 
+/// but without the unitig sequence itself.
+///
+/// This contains the unitig lengths and (indexed) offsets as well 
+/// as the value of k for which the unitigs were built.
+///
+/// This is essentially a `UnitigSet`, but without the sequence 
+/// itself.
+#[derive(Debug)]
+pub struct UnitigSetInfo {
+    pub(crate) k : usize,
+    pub(crate) accum_lens : SparseVector,
+}
+
+impl UnitigSetInfo {
+    /// Create a `UnitigSetInfo` struct from `cuttlefish` output
+    ///
+    /// Consumes the files in "reduced GFA format" from `cuttlefish`.
+    /// Returns a UnitigSet, and a HashMap mapping IDs given by `cuttlefish`
+    /// (that are not sequential) to sequention IDs [0..N] for N unitig sequences.
+    pub fn from_cf_reduced_gfa(cf_files: &CfFiles) -> Result<(Self, HashMap<usize, usize>)> {
+        let cf_info = CfInfo::from_path(&cf_files.json)?;
+        let len = cf_info.total_len();
+
+        // 1) open cf segs and insert the segments
+        let mut uid_to_idx = HashMap::new();
+        // the +1 below is because to ease working with the 
+        // resulting bitvector, we will place a 1 at the end 
+        // of the last unitig as well.
+        let mut accum_lens = SparseBuilder::new(
+            len + 1, cf_info.n_unitigs())
+            .expect("construct accum_lens builder");
+
+        let f = File::open(&cf_files.segs).unwrap();
+        let f = BufReader::new(f);
+
+        let mut prefix_sum = 0;
+
+        for (i, line) in f.lines().enumerate() {
+            let line = line?;
+            let (id, seq) = line.split_once('\t').expect("Cannot split .cf_seqs line");
+            let id: usize = id.parse().expect("Failed to parse unitig ID");
+            let ulen = seq.len();
+
+            uid_to_idx.insert(id, i);
+            prefix_sum += ulen;
+            accum_lens.set(prefix_sum - 1);
+            println!("prefix_sum = {}", prefix_sum);
+        }
+        //accum_lens.set(prefix_sum);
+
+        let accum_lens = SparseVector::try_from(accum_lens)
+            .expect("building SparseVector accum_lens from builder.");
+
+        Ok((
+            Self {
+                k: cf_info.k(),
+                accum_lens,
+            },
+            uid_to_idx,
+        ))
+    }
+
+    /// Map the given _global_ position on concatenated unitig sequences to
+    /// the corresponding unitig ID. This leaky abstraction is useful for
+    /// k-mer indexing. (See [crate::kphf::SSHash] and [crate::kphf::PFHash])
+   #[inline]
+    pub fn pos_to_id(&self, pos: usize) -> usize {
+        self.accum_lens.rank(pos)
+    }
+
+    /// Number of unitigs encoded in this set
+    pub fn n_unitigs(&self) -> usize {
+        self.accum_lens.count_ones()
+    }
+
+    /// Return length of unitig `i`
+    pub fn unitig_len(&self, i: usize) -> usize {
+        if i > 0 {
+            (self.accum_lens.select(i).unwrap() - self.accum_lens.select(i-1).unwrap()) as usize
+        } else {
+            self.accum_lens.select(0).unwrap() + 1
+        }
+    }
+
+    /// Get where sequence unitig `i` starts on global cancatenated [SeqVector]
+    pub fn unitig_start_pos(&self, i: usize) -> usize {
+        if i > 0 {
+            self.accum_lens.select(i - 1).unwrap() + 1 as usize
+        } else {
+            0_usize
+        }
+    }
+
+    /// Get where sequence unitig `i` ends on global cancatenated [SeqVector]
+    pub fn unitig_end_pos(&self, i: usize) -> usize {
+        self.accum_lens.select(i).unwrap() as usize
+    }
+
+    /// Return the total length of the [UnitigSet] ()
+    pub fn total_len(&self) -> usize {
+        self.accum_lens.select(self.n_unitigs() - 1).unwrap() + 1 as usize
+    }
+
+    /// Return number of k-mers encoded in [UnitigSet]
+    pub fn n_kmers(&self) -> usize {
+        self.total_len() - (self.k * self.n_unitigs()) + self.n_unitigs()
+    }
+
+    pub fn k(&self) -> usize {
+        self.k
+    }
+}
+
 
 /// Compact encoding for a collection of unitigs
 ///
@@ -349,6 +466,8 @@ impl<'a> Iterator for ChunkedUnitigIterator<'a> {
 #[cfg(test)]
 mod test {
     use crate::test_utils::*;
+    use crate::unitig_set::UnitigSetInfo;
+    use crate::unitig_set::CfFiles;
 
     #[test]
     fn unitigs() {
@@ -378,5 +497,38 @@ mod test {
         }
 
         assert_eq!(unitigs.total_len(), 20);
+    }
+
+
+    use simple_sds::ops::{BitVec, Rank, Select, SelectZero, PredSucc};
+
+    #[test]
+    fn unitig_info() {
+        let cf_files = CfFiles::new(TINY_CF_PREFIX);
+        if let Ok((unitig_set_info, cfid_2_uid)) = UnitigSetInfo::from_cf_reduced_gfa(&cf_files) {
+            assert_eq!(unitig_set_info.k(), 7);
+
+            assert_eq!(unitig_set_info.unitig_len(0), 10);
+            assert_eq!(unitig_set_info.unitig_len(1), 10);
+
+            assert_eq!(unitig_set_info.unitig_start_pos(0), 0);
+            assert_eq!(unitig_set_info.unitig_start_pos(1), 10);
+
+            assert_eq!(unitig_set_info.unitig_end_pos(0), 9);
+            assert_eq!(unitig_set_info.unitig_end_pos(1), 19);
+
+            assert_eq!(unitig_set_info.total_len(), 20);
+
+            for i in 0..10 {
+                assert_eq!(unitig_set_info.pos_to_id(i), 0);
+            }
+
+            for i in 10..20 {
+                assert_eq!(unitig_set_info.pos_to_id(i), 1);
+            }
+
+        } else {
+            panic!("couldn't construct the UnitigSetInfo on the tiny example data.");
+        }
     }
 }
