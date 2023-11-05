@@ -1,4 +1,6 @@
-use simple_sds::{int_vector::IntVector, ops::Pack};
+use simple_sds::{int_vector::IntVector, 
+    ops::{Access, Select, Pack, Vector}, 
+    sparse_vector::SparseVector};
 use std::path::Path;
 
 use crate::{
@@ -27,8 +29,11 @@ impl PiscemIndex {
 
         let bh = WyHashState::default();
         let sshash = SSHashDefault::from_unitig_set(spt.unitigs, w, skew_param, bh)?;
-        let mut contig_offsets = IntVector::from(spt.offsets);
+        /*let o = spt.offsets.one_iter().map( |x| x.1 ).collect::<Vec<usize>>();
+        let mut contig_offsets = IntVector::from(o);//spt.offsets);
         contig_offsets.pack();
+        */
+        let contig_offsets = spt.offsets;
 
         let utab = PiscemUnitigTable {
             ctable: spt.ctable.ctable,

@@ -70,9 +70,7 @@ impl UnitigSetInfo {
             uid_to_idx.insert(id, i);
             prefix_sum += ulen;
             accum_lens.set(prefix_sum - 1);
-            println!("prefix_sum = {}", prefix_sum);
         }
-        //accum_lens.set(prefix_sum);
 
         let accum_lens = SparseVector::try_from(accum_lens)
             .expect("building SparseVector accum_lens from builder.");
@@ -118,16 +116,19 @@ impl UnitigSetInfo {
     }
 
     /// Get where sequence unitig `i` ends on global cancatenated [SeqVector]
+    /// This function returns 1 index beyond the last position of the unitig 
+    /// (that is, we employ half-open range indexing so that unitig i spans
+    /// [`unitig_start_pos(i)`, `unitig_end_pos(i)`) )
     pub fn unitig_end_pos(&self, i: usize) -> usize {
-        self.accum_lens.select(i).unwrap() as usize
+        self.accum_lens.select(i).unwrap() + 1 as usize
     }
 
-    /// Return the total length of the [UnitigSet] ()
+    /// Return the total length of the [UnitigSetInfo] ()
     pub fn total_len(&self) -> usize {
         self.accum_lens.select(self.n_unitigs() - 1).unwrap() + 1 as usize
     }
 
-    /// Return number of k-mers encoded in [UnitigSet]
+    /// Return number of k-mers encoded in [UnitigSetInfo]
     pub fn n_kmers(&self) -> usize {
         self.total_len() - (self.k * self.n_unitigs()) + self.n_unitigs()
     }
@@ -505,7 +506,7 @@ mod test {
     #[test]
     fn unitig_info() {
         let cf_files = CfFiles::new(TINY_CF_PREFIX);
-        if let Ok((unitig_set_info, cfid_2_uid)) = UnitigSetInfo::from_cf_reduced_gfa(&cf_files) {
+        if let Ok((unitig_set_info, _cfid_2_uid)) = UnitigSetInfo::from_cf_reduced_gfa(&cf_files) {
             assert_eq!(unitig_set_info.k(), 7);
 
             assert_eq!(unitig_set_info.unitig_len(0), 10);
@@ -514,8 +515,8 @@ mod test {
             assert_eq!(unitig_set_info.unitig_start_pos(0), 0);
             assert_eq!(unitig_set_info.unitig_start_pos(1), 10);
 
-            assert_eq!(unitig_set_info.unitig_end_pos(0), 9);
-            assert_eq!(unitig_set_info.unitig_end_pos(1), 19);
+            assert_eq!(unitig_set_info.unitig_end_pos(0), 10);
+            assert_eq!(unitig_set_info.unitig_end_pos(1), 20);
 
             assert_eq!(unitig_set_info.total_len(), 20);
 
@@ -527,6 +528,38 @@ mod test {
                 assert_eq!(unitig_set_info.pos_to_id(i), 1);
             }
 
+        } else {
+            panic!("couldn't construct the UnitigSetInfo on the tiny example data.");
+        }
+    }
+
+
+    #[test]
+    fn unitig_parsers_agree() {
+        let unitigs = load_unitigs(YEAST_CF_PREFIX);
+        let cf_files = CfFiles::new(YEAST_CF_PREFIX);
+        if let Ok((unitig_set_info, _cfid_2_uid)) = UnitigSetInfo::from_cf_reduced_gfa(&cf_files) {
+            assert_eq!(unitig_set_info.k(), unitigs.k());
+
+            let n_kmers = unitigs.n_kmers();
+            assert_eq!(unitig_set_info.n_kmers(), n_kmers);
+ 
+            let n_unitigs = unitigs.n_unitigs();
+            assert_eq!(unitig_set_info.n_unitigs(), n_unitigs);
+
+            for i in 0..n_unitigs {
+                assert_eq!(unitig_set_info.unitig_len(i), unitigs.unitig_len(i));
+                assert_eq!(unitig_set_info.unitig_start_pos(i), unitigs.unitig_start_pos(i));
+                assert_eq!(unitig_set_info.unitig_end_pos(i), unitigs.unitig_end_pos(i),
+                    "testing the end position of unitig {}", i);
+            }
+
+            let tlen = unitigs.total_len();
+            assert_eq!(unitig_set_info.total_len(), tlen);
+
+            for i in 0..tlen {
+                assert_eq!(unitig_set_info.pos_to_id(i), unitigs.pos_to_id(i));
+            }
         } else {
             panic!("couldn't construct the UnitigSetInfo on the tiny example data.");
         }

@@ -1,5 +1,6 @@
 use simple_sds::int_vector::IntVector;
-use simple_sds::ops::{Access, Vector};
+use simple_sds::ops::{Access, Vector, BitVec, Select};
+use simple_sds::sparse_vector::SparseVector;
 
 use crate::cuttlefish::{CfFiles, CfSeqToken};
 use crate::err::{Error, Result};
@@ -193,7 +194,8 @@ pub struct SPTCompact {
     pub unitigs: UnitigSet,
     pub ref_names: Vec<String>,
     pub ctable: TileOccTable, // inv list of unitig occs (packed into minimal number of bits) // TODO rename this
-    pub offsets: Vec<usize>,  // prefix sum of offsets of inv lists
+    //pub offsets: Vec<usize>,  // prefix sum of offsets of inv lists
+    pub offsets: SparseVector,  // prefix sum of offsets of inv lists
     pub ref_lens: Vec<usize>,
 }
 
@@ -275,7 +277,8 @@ impl SPTCompact {
     }
 
     pub fn get_occ(&self, uid: usize, i: usize) -> UnitigOcc {
-        let ptr = self.offsets[uid] + i;
+        //let ptr = self.offsets[uid] + i;
+        let ptr = self.offsets.select(uid).unwrap() + i;
         self.ctable.get_occ(ptr)
     }
 
@@ -327,12 +330,20 @@ impl SPTCompact {
             max_ref_len = max_ref_len.max(len);
         }
 
-        // 2) Prefix sum
-        let offsets = crate::util::prefix_sum(&ufreq);
-        let n_occs = offsets[n_unitigs];
+        let mut ctable_ptrs : Vec<usize>;
+        let offsets : SparseVector;
+        {
+            // 2) Prefix sum
+            let offsets_vec = crate::util::prefix_sum(&ufreq);
+            ctable_ptrs = offsets_vec.clone(); 
+            offsets = SparseVector::try_from_iter(offsets_vec.into_iter())
+                .expect("building offsets EliasFano vector from the prefix sum."); 
+            // drop the original offsets_vec here because we no longer need it
+        }
+        let n_occs = ctable_ptrs[n_unitigs];
 
         // 3) allocate inverted list
-        let mut ctable_ptrs = offsets.clone(); // pointer to next word
+        // let mut ctable_ptrs = offsets.clone(); // pointer to next word
         let mut ref_lens = Vec::with_capacity(ref_names.len());
         // compute the number of bits requried for each occurence
         // entry.
@@ -416,7 +427,8 @@ mod test {
     fn compare_spt_impls() {
         let spt = SPTCompact::from_cf_prefix(TINY_CF_PREFIX).unwrap();
         let spt_old = SPT_::from_cf_prefix(TINY_CF_PREFIX).unwrap();
-        assert_eq!(spt.offsets, spt_old.offsets);
+        let o = spt.offsets.one_iter().map(|x| x.1).collect::<Vec<usize>>();
+        assert_eq!(o, spt_old.offsets);
         let n_occs = spt.n_total_occs();
         for i in 0..n_occs {
             let occ = spt.get_global_occ(i);
@@ -427,7 +439,8 @@ mod test {
 
         let spt = SPTCompact::from_cf_prefix(YEAST_CF_PREFIX).unwrap();
         let spt_old = SPT_::from_cf_prefix(YEAST_CF_PREFIX).unwrap();
-        assert_eq!(spt.offsets, spt_old.offsets);
+        let o = spt.offsets.one_iter().map(|x| x.1).collect::<Vec<usize>>();
+        assert_eq!(o, spt_old.offsets);
 
         let n_occs = spt.n_total_occs();
         for i in 0..n_occs {

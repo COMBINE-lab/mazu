@@ -2,7 +2,8 @@ use std::ops::Range;
 
 use simple_sds::{
     int_vector::IntVector,
-    ops::{Access, Vector},
+    sparse_vector::SparseVector,
+    ops::{Access, Vector, Select},
 };
 
 use super::{U2Pos, UnitigOcc};
@@ -112,7 +113,8 @@ pub struct PiscemUnitigTable {
     pub(crate) pos_mask: u64,
 
     pub(crate) ctable: IntVector,
-    pub(crate) contig_offsets: IntVector,
+    //pub(crate) contig_offsets: IntVector,
+    pub(crate) contig_offsets: SparseVector,
     pub(crate) ref_names: Vec<String>, // TODO move this into refseq class
     pub(crate) _ref_exts: Vec<u32>,
 }
@@ -128,8 +130,11 @@ impl U2Pos for PiscemUnitigTable {
     type EncodedOccs<'a> = OccsRange where Self: 'a;
 
     fn encoded_unitig_occs(&self, ui: usize) -> Self::EncodedOccs<'_> {
-        let start_idx = self.contig_offsets.get(ui) as usize;
-        let end_idx = self.contig_offsets.get(ui + 1) as usize;
+        //let start_idx = self.contig_offsets.get(ui) as usize;
+        //let end_idx = self.contig_offsets.get(ui + 1) as usize;
+        let start_idx = self.contig_offsets.select(ui).unwrap() as usize;
+        let end_idx = self.contig_offsets.select(ui + 1).unwrap() as usize;
+
         // let r = start_idx..end_idx;
         OccsRange::new(start_idx, end_idx)
     }
