@@ -4,7 +4,7 @@ use kmers::naive_impl::{CanonicalKmer, CanonicalKmerIterator, MatchType};
 
 use crate::{
     kphf::{K2UPos, K2U},
-    unitig_set::UnitigSet,
+    unitig_set::{UnitigSet, UnitigSetFn},
     util::FastaReader,
     MappedRefPos, ModIndex, ProjectedHits, U2Pos, UnitigOcc,
 };

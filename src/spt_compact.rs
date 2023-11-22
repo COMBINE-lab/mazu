@@ -1,11 +1,11 @@
 use simple_sds::int_vector::IntVector;
-use simple_sds::ops::{Access, Vector, BitVec, Select};
+use simple_sds::ops::{Access, Vector, Select};
 use simple_sds::sparse_vector::SparseVector;
 
 use crate::cuttlefish::{CfFiles, CfSeqToken};
 use crate::err::{Error, Result};
 use crate::refseq::RefSeqCollection;
-use crate::unitig_set::UnitigSet;
+use crate::unitig_set::{UnitigSet, UnitigSetFn};
 use crate::{Orientation, UnitigOcc};
 // use std::io::{Error, ErrorKind};
 use std::path::Path;

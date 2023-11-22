@@ -10,7 +10,7 @@ use simple_sds::{
 use std::hash::BuildHasher;
 
 use super::{K2UPos, WyHashState, K2U};
-use crate::{caching::StreamingK2U, elias_fano::EFVector, unitig_set::UnitigSet, Result};
+use crate::{caching::StreamingK2U, elias_fano::EFVector, unitig_set::UnitigSet, unitig_set::UnitigSetFn, Result};
 
 #[allow(non_camel_case_types)]
 pub(crate) type mphf_t = boomphf::Mphf<u64>;

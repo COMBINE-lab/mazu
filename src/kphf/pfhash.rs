@@ -10,7 +10,7 @@ use simple_sds::{
 use rayon::prelude::*;
 
 use super::{K2UPos, K2U, MPHF};
-use crate::unitig_set::UnitigSet;
+use crate::unitig_set::{UnitigSet, UnitigSetFn};
 
 #[allow(non_camel_case_types)]
 type pf1_mphf_t = boomphf::Mphf<u64>;

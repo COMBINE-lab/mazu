@@ -16,7 +16,7 @@ use crate::{
     kphf::PFHash,
     pf1::PF1FilePaths,
     refseq::RefSeqCollection,
-    unitig_set::UnitigSet,
+    unitig_set::{UnitigSet, UnitigSetFn},
     Result,
 };
 

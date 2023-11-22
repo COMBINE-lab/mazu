@@ -3,7 +3,7 @@ use kmers::naive_impl::CanonicalKmerIterator;
 use mazu::{
     cuttlefish::*,
     kphf::{pfhash::PFHashDefault, sshash::SSHashDefault, PFHash, SSHash, WyHashState, K2U},
-    unitig_set::UnitigSet,
+    unitig_set::{UnitigSet, UnitigSetFn},
     util::FastaReader,
 };
 use std::{

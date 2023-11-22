@@ -1,4 +1,4 @@
-use crate::{cuttlefish::CfFiles, unitig_set::UnitigSet};
+use crate::{cuttlefish::CfFiles, unitig_set::UnitigSet, unitig_set::UnitigSetFn};
 use std::path::{Path, PathBuf};
 
 pub const TINY_CF_PREFIX: &str = "test_data/cf/tiny/tiny";

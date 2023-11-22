@@ -1,7 +1,7 @@
 use crate::cuttlefish::{CfFiles, CfSeqToken};
 use crate::err::Result;
 use crate::refseq::RefSeqCollection;
-use crate::unitig_set::UnitigSet;
+use crate::unitig_set::{UnitigSet, UnitigSetFn};
 use crate::UnitigOcc;
 use std::path::Path;
 
